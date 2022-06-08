@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title> Assignment 2</title>
+
+        <!-- Bootstrap cdn-->
+        <!-- Latest compiled and minified CSS -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/css/bootstrap.min.css">
+
+        <!-- jQuery library -->
+        <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.slim.min.js"></script>
+
+        <!-- Popper JS -->
+        <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+
+        <!-- Load d3.js -->
+        <script src="https://d3js.org/d3.v4.js"></script>
+
+</head>
+<body>
+
+<h1 class = "p-3 text-center">Criminal Cases Recorded </h1>
+
+<p></p>
+<div id="my_dataviz"></div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+<script>   
+let myData = {};
+console.log("testing");
+fetch('https://data.gov.sg/api/action/datastore_search?resource_id=83c21090-bd19-4b54-ab6b-d999c251edcf')
+    .then(response => response.json())
+    .then(data => {
+        myData = data;
+        console.log(myData);
+        console.log("testing");
+        barplot(sortData(myData));
+        //sortData(myData);
+    }); 
+
+    
+function sortData(data) {
+    
+    console.log(data.result.records[0].value);
+    total = Object.keys(data.result.records).length;
+    console.log(total);
+    var dict = [], tmp;
+    
+    
+    for (const [key, value] of Object.entries(data.result.records)) {
+        //console.log(key);
+        //console.log(value);
+        if (data.result.records[key].year === '2020') {
+            //console.log("hey im 2020");
+            console.log(data.result.records[key].level_2);
+            console.log(data.result.records[key].value);
+            dict.push({
+                key: data.result.records[key].level_2,
+                value: parseInt(data.result.records[key].value)
+            });
+        }
+    } 
+    //return dict
+    var dictstring = JSON.stringify(dict);
+    /*
+    var dictstring = Object.keys(dict).map(function(k){
+        return dict[k];
+    }).join(','); */
+    /*
+    var json = dict
+var fields = Object.keys(json[0])
+var replacer = function(key, value) { return value === null ? '' : value } 
+var csv = json.map(function(row){
+  return fields.map(function(fieldName){
+    return JSON.stringify(row[fieldName], replacer)
+  }).join(',')
+})
+csv.unshift(fields.join(',')) // add header column
+ csv = csv.join('\r\n');
+console.log(csv) */
+    return dict
+
+}
+
+function barplot(dictstring) {
+    console.log(dictstring)
+    // set the dimensions and margins of the graph
+var margin = {top: 30, right: 30, bottom: 70, left: 60},
+    width = 1000 - margin.left - margin.right,
+    height = 460 - margin.top - margin.bottom;
+
+// append the svg object to the body of the page
+var svg = d3.select("#my_dataviz")
+  .append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")");
+
+// Parse the Data
+//d3.csv("https://raw.githubusercontent.com/holtzy/data_to_viz/master/Example_dataset/7_OneCatOneNum_header.csv", function(data) {
+//d3.csv(dictstring, function(data) {
+  // sort data
+  /*
+  data.sort(function(b, a) {
+    return a.Value - b.Value;
+  }); */
+
+  // X axis
+  var x = d3.scaleBand()
+    .range([ 0, width ])
+    .domain(dictstring.map(function(d) { return d.key; }))
+    .padding(0.2);
+  svg.append("g")
+    .attr("transform", "translate(0," + height + ")")
+    .call(d3.axisBottom(x))
+    .selectAll("text")
+      .attr("transform", "translate(-10,0)rotate(-45)")
+      //.attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+      .style("text-anchor", "end");
+
+  // Add Y axis
+  var y = d3.scaleLinear()
+  .domain([0, d3.max(dictstring, function(d) {return +d.value;})])
+    .range([ height, 0]);
+  svg.append("g")
+    .call(d3.axisLeft(y));
+
+    //mouseover functions
+    var tooltip = d3.select("#my_dataviz")
+    .append("div")
+    .style("opacity", 0)
+    .attr("class", "tooltip")
+    .style("background-color", "white")
+    .style("border", "solid")
+    .style("border-width", "1px")
+    .style("border-radius", "5px")
+    .style("padding", "10px")
+
+  // Three function that change the tooltip when user hover / move / leave a cell
+  var mouseover = function(d) {
+    //var subgroupName = d3.select(this.parentNode).datum().key;
+    //var subgroupValue = d.data[subgroupName];
+    tooltip
+        .html("cases: " + d.value)
+        .style("opacity", 1)
+  }
+  var mousemove = function(d) {
+    tooltip
+      .style("left", (d3.mouse(this)[0]+90) + "px") // It is important to put the +90: other wise the tooltip is exactly where the point is an it creates a weird effect
+      .style("top", (d3.mouse(this)[1]) + "px")
+  }
+  var mouseleave = function(d) {
+    tooltip
+      .style("opacity", 0)
+  }
+//end of mouse over functions
+
+  // Bars
+  svg.selectAll("mybar")
+    .data(dictstring)
+    .enter()
+    .append("rect")
+      .attr("x", function(d) { return x(d.key); })
+      .attr("y", function(d) { return y(d.value); })
+      .attr("width", x.bandwidth())
+      .attr("height", function(d) { return height  - y(d.value); })
+      .attr("fill", "#69b3a2")
+    .on("mouseover", mouseover)
+    .on("mousemove", mousemove)
+    .on("mouseleave", mouseleave)
+
+}
+
+</script>
+
+</body>
+</html>
